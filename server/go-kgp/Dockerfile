@@ -1,4 +1,4 @@
-FROM docker.io/library/golang:alpine
+FROM docker.io/library/golang:alpine3.18
 
 # Fetch build dependencies
 RUN apk add --no-cache sqlite graphviz gcc libc-dev
