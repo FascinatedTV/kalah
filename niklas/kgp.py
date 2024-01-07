@@ -30,7 +30,6 @@ try:
 except ModuleNotFoundError:
     pass
 
-
 _BOARD_PATTERN = re.compile(r'^(<(\d+(?:,\d+){4,})>)\s*')
 
 

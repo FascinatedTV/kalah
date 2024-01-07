@@ -6,6 +6,7 @@
 
 import kgp
 import time
+import math
 from functools import lru_cache
 
 # We will be using a simple evaluation strategy: Compare the
@@ -83,12 +84,23 @@ def alpha_beta_negamax_search(state, depth, side, alpha=float('-inf'), beta=floa
             evaluation = eval(new_state)
             return sign*evaluation, move
         if again:
-            child_value, _ = alpha_beta_negamax_search(new_state, depth, side, alpha, beta, sign, eval)
+            child_value, _ = alpha_beta_negamax_search(state=new_state,
+                                                       depth=depth,
+                                                       side=side,
+                                                       alpha=alpha,
+                                                       beta=beta,
+                                                       sign=sign,
+                                                       eval=eval)
             return child_value, move
         else:
-            child_value, _ = alpha_beta_negamax_search(new_state, depth-1, not side, -beta, -alpha, sign*(-1), eval)
-            child_value = -child_value  #because of negamax algorithm
-            return child_value, move
+            child_value, _ = alpha_beta_negamax_search(state=new_state,
+                                                       depth=depth-1,
+                                                       side=not side,
+                                                       alpha=-beta,
+                                                       beta=-alpha,
+                                                       sign=sign*(-1),
+                                                       eval=eval)
+            return -child_value, move
     
     if depth == 0 or state.is_final():
         evaluation = eval(state)
@@ -109,11 +121,11 @@ def alpha_beta_negamax_search(state, depth, side, alpha=float('-inf'), beta=floa
     return value, best_move  # Return evaluated value and best move
 """
 #%% NegaMax with TT
+"""
 def alpha_beta_negamax_searchTT(state, depth, side, alpha=float('-inf'), beta=float('inf'), sign=1, eval = evaluate, transposition_table={}, cache_info=None):
     if cache_info is None:
         cache_info = {'cache_size': 0, 'cache_hits': 0}
-    
-    @lru_cache(maxsize=2^20)    # TODO: Find optimal size and evaluate cachehits
+    #@lru_cache(maxsize=2^20)    # TODO: Find optimal size and evaluate cachehits
     def child(move):
         if depth <= 0:
             evaluation = eval(state)
@@ -182,16 +194,82 @@ def alpha_beta_negamax_searchTT(state, depth, side, alpha=float('-inf'), beta=fl
         transposition_table[hash_key] = {'depth': depth, 'score': value, 'flag': 'EXACT', 'best_move': best_move}
         cache_info['cache_size'] += 1
     return value, best_move  # Return evaluated value and best move
-
+"""
+#%% Principal Variaion Search UNDER CONSTRUCTION
+def PVS(state, depth, side, alpha=float('-inf'), beta=float('inf'), sign=1, evaluation = evaluate):
+    if depth == 0 or state.is_final():
+        return sign*evaluation(state) , None
+    legal_moves = state.legal_moves(side)
+    legal_moves_sort = sorted(legal_moves,reverse = True, key=lambda move: evaluate_sort_max(state,side,move))
+    best_move = None
+    for move in legal_moves_sort:
+        child , again = state.sow(side, move)
+        if move == legal_moves_sort[0]:     #search in first Child Node
+            if again:
+                value = PVS(state=child,
+                            depth=depth-1,     #was wenn man tiefe nicht verändert???
+                            side=side,
+                            alpha=alpha,
+                            beta=beta,
+                            sign=sign,
+                            evaluation=evaluation)[0]
+            else:
+                value = -PVS(state=child,
+                            depth=depth-1,
+                            side=not side,
+                            alpha=-beta,
+                            beta=-alpha,
+                            sign=-sign,
+                            evaluation=evaluation)[0]
+        if again:           #search with a null window
+            value = PVS(state=child,
+                        depth=depth-1,     #was wenn man tiefe nicht verändert???
+                        side=side,
+                        alpha=alpha,
+                        beta=beta,
+                        sign=sign,
+                        evaluation=evaluation)[0]
+        else:    
+            value = -PVS(state=child,
+                        depth=depth-1,
+                        side=not side,
+                        alpha=-alpha-1,
+                        beta=-alpha,
+                        sign=-sign,
+                        evaluation=evaluation)[0] 
+            if alpha < value and value < beta:  #if search failed High, do a full research
+                if again:
+                    value = PVS(state=child,
+                                depth=depth-1,     #was wenn man tiefe nicht verändert???
+                                side=side,
+                                alpha=alpha,
+                                beta=beta,
+                                sign=sign,
+                                evaluation=evaluation)[0]
+                else:
+                    value = -PVS(state=child,
+                                depth=depth-1,
+                                side=not side,
+                                alpha=-beta,
+                                beta=-alpha,
+                                sign=-sign,
+                                evaluation=evaluation)[0]
+        if value > alpha:
+            alpha = value
+            best_move = move
+        if alpha >= beta:
+            break       #Cut-off
+    return value, best_move
 #%% Agent and Main
 transposition_table = {}
 cache_info = {'cache_size': 0, 'cache_hits': 0}
 def agent(state):
     global cache_hits
     global cache_size
-    for depth in range(1, 32, 2): 
+    for depth in range(2, 32, 2): 
         start = time.time()
-        out = alpha_beta_negamax_searchTT(state, depth, kgp.SOUTH,transposition_table=transposition_table,cache_info=cache_info)[1]
+        #out = alpha_beta_negamax_searchTT(state, depth, kgp.SOUTH,transposition_table=transposition_table,cache_info=cache_info)[1]
+        out = PVS(state, depth, kgp.SOUTH)[1]
         cache_size = cache_info['cache_size']
         cache_hits = cache_info['cache_hits']
         end = time.time()
@@ -201,4 +279,4 @@ def agent(state):
 
 if __name__ == "__main__":
     import os
-    kgp.connect(agent, host="localhost", debug=True, token=os.getenv("TOKEN"), name="NegaMaxTT2-LRU 2^20 info")
+    kgp.connect(agent, host="localhost", debug=True, token=os.getenv("TOKEN"), name="PVS")
