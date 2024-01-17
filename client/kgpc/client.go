@@ -29,11 +29,16 @@ import (
 	"sync/atomic"
 )
 
-var debug = os.Getenv("DEBUG") != ""
+var (
+	token  = "00000"                         //os.Getenv("TOKEN")
+	author = "Niklas Haas & Kyrill Hoffmann" // os.Getenv("AUTHOR")
+	name   = "Fast Boii - AB"                // os.Getenv("NAME")
+	debug  = os.Getenv("DEBUG") != "1"
+)
 
 // Client wraps a network connection into a player
 type Client struct {
-	rwc  io.ReadWriteCloser
+	Rwc  io.ReadWriteCloser
 	rid  uint64
 	lock sync.Mutex
 }
@@ -49,16 +54,16 @@ func (cli *Client) Error(to uint64, args ...interface{}) {
 
 // Respond forwards a referenced message to the client
 func (cli *Client) Respond(to uint64, command string, args ...interface{}) uint64 {
-	var out io.Writer = cli.rwc
+	var out io.Writer = cli.Rwc
 	if debug {
 		fmt.Fprint(os.Stderr, ">")
 		out = io.MultiWriter(os.Stderr, out)
 	}
 
 	id := atomic.AddUint64(&cli.rid, 2)
-	fmt.Fprint(cli.rwc, id)
+	fmt.Fprint(cli.Rwc, id)
 	if to > 0 {
-		fmt.Fprintf(cli.rwc, "@%d", to)
+		fmt.Fprintf(cli.Rwc, "@%d", to)
 	}
 
 	fmt.Fprintf(out, " %s", command)
@@ -98,12 +103,12 @@ func (cli *Client) Handle() {
 
 	// Ensure that the client has a channel that is being
 	// communicated upon.
-	if cli.rwc == nil {
+	if cli.Rwc == nil {
 		panic("No ReadWriteCloser")
 	}
-	defer cli.rwc.Close()
+	defer cli.Rwc.Close()
 
-	scanner := bufio.NewScanner(cli.rwc)
+	scanner := bufio.NewScanner(cli.Rwc)
 	for scanner.Scan() {
 		err := cli.Interpret(scanner.Text())
 		if err != nil {
@@ -115,5 +120,5 @@ func (cli *Client) Handle() {
 	}
 
 	// Try to send a goodbye message, ignoring any errors
-	fmt.Fprintf(cli.rwc, "goodbye\r\n")
+	fmt.Fprintf(cli.Rwc, "goodbye\r\n")
 }

@@ -20,12 +20,12 @@
 package sched
 
 import (
+	kgp "go-kgp"
 	"log"
 	"math/rand"
 	"sync"
 	"time"
 
-	"go-kgp"
 	"go-kgp/bot"
 	"go-kgp/cmd"
 	"go-kgp/game"
@@ -52,14 +52,18 @@ func (f *fifo) Start(st *cmd.State, conf *cmd.Conf) {
 		av   = conf.Game.Open.Bots
 	)
 
-	bots = append(bots, bot.MakeRandom())
+	// bots = append(bots, bot.MakeRandom())
 	for d, accs := range map[uint][]float64{
-		2:  {1},
-		4:  {0.4, 1},
-		6:  {0.4, 0.75, 0.9, 1},
-		8:  {0.4, 0.75, 0.9, 1},
-		10: {0.4, 0.75, 0.9},
-		12: {0.4, 0.75},
+		// 2:  {1},
+		// 4:  {0.4, 1},
+		// 6:  {0.4, 0.75, 0.9, 1},
+		// 8:  {0.4, 0.75, 0.9, 1},
+		// 10: {0.4, 0.75, 0.9},
+		// 12: {0.4, 0.75},
+		6:  {1},
+		8:  {1},
+		10: {1},
+		//12: {1},
 	} {
 		for _, a := range accs {
 			bots = append(bots, bot.MakeMinMax(d, a))

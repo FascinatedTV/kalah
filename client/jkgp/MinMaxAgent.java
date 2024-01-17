@@ -135,8 +135,8 @@ class MinMaxAgent extends Agent {
         while (true) {
 
             Agent agent = new MinMaxAgent(
-                    "kalah.kwarc.info/socket",
-                    null,
+                    "localhost",
+                    2671,
                     ProtocolManager.ConnectionType.WebSocketSecure,
                     5);
 

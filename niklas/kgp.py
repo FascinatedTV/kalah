@@ -21,8 +21,8 @@ import re
 import os
 import sys
 import socket
-import threading
-import multiprocess as mp
+from threading import Thread
+from queue import Queue
 import copy
 
 try:
@@ -218,7 +218,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
     If DEBUG has a true value, the network communication is printed on
     to the standard error stream.
     """
-    assert inspect.isgeneratorfunction(agent)
+    assert inspect.isgeneratorfunction(agent.agent)
 
     COMMAND_PATTERN = re.compile(r"""
 ^                   # beginning of line
@@ -245,7 +245,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
     FLOAT_PATTERN = re.compile(r'^(\d+(?:\.\d+)?)\s*')
     BOARD_PATTERN = _BOARD_PATTERN
 
-    queue = mp.Queue()
+    queue = Queue()
 
     def split(args):
         """
@@ -284,7 +284,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
                 return parsed
 
     def handle(read, write):
-        id = mp.Value('d', 1)
+        id = 1
 
         def send(cmd, *args, ref=None):
             """
@@ -292,8 +292,9 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
 
             If ref is not None, add a reference.
             """
+            nonlocal id
 
-            msg = str(int(id.value))
+            msg = str(id)
             if ref:
                 msg += f'@{ref}'
             msg += " " + cmd
@@ -311,8 +312,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
             msg += "\r\n"
             queue.put(msg)
 
-            with id.get_lock():
-                id.value += 2
+            id += 2
 
         def query(state, cid):
             """
@@ -325,7 +325,11 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
             if state.is_final():
                 return
             last = None
-            for move in agent(state):
+            for move in agent.agent(state):
+                if move is None:
+                    if agent.stopFlag:
+                        break
+                    continue
                 if not type(move) is int:
                     raise TypeError("Not a move")
                 if move != last:
@@ -339,7 +343,7 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
         def sender():
             while True:
                 write(queue.get())
-        threading.Thread(target=sender).start()
+        Thread(target=sender).start()
 
         for line in read():
             if debug:
@@ -375,16 +379,17 @@ def connect(agent, host='wss://kalah.kwarc.info/socket', port=2671, token=None, 
                     if cid in threads:
                         # Duplicate IDs by the server are ignored
                         continue
-
-                    threads[cid] = mp.Process(
+                    print(f"State: {cid}")
+                    threads[cid] = Thread(
                         name=f'query-{cid}',
                         args=(board, cid),
                         target=query)
                     threads[cid].start()
                 elif cmd == "stop":
                     if ref and ref in threads:
+                        print(f"Stop: {ref}")
                         thread = threads[ref]
-                        thread.kill()
+                        agent.stopFlag = True
                         thread.join()
                         threads.pop(ref, None)
                 elif cmd == "ok":

@@ -42,14 +42,14 @@ func start(cli *Client, id uint64, board *Board) {
 	running[id] = cmd
 
 	var buf bytes.Buffer
-	fmt.Fprintf(&buf, "%d %d %d", len(board.northPits), board.south, board.north)
+	fmt.Fprintf(&buf, "<%d,%d,%d", len(board.northPits), board.south, board.north)
 	for _, v := range board.southPits {
-		fmt.Fprintf(&buf, " %d", v)
+		fmt.Fprintf(&buf, ",%d", v)
 	}
 	for _, v := range board.northPits {
-		fmt.Fprintf(&buf, " %d", v)
+		fmt.Fprintf(&buf, ",%d", v)
 	}
-	fmt.Fprintln(&buf)
+	fmt.Fprintln(&buf, ">")
 	cmd.Stdin = &buf
 	cmd.Stderr = os.Stderr
 
